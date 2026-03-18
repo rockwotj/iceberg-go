@@ -518,6 +518,10 @@ func (t *Transaction) validateDataFilesToAdd(dataFiles []iceberg.DataFile, opera
 // Unlike AddFiles, this method does not read files from storage. It validates only metadata
 // that can be checked without opening files (for example spec-id and partition field IDs).
 //
+// It is expected that callers have set [DefaultNameMappingKey] in table properties if the
+// added data files do not have a field-id specified (for example if the parquet schema does
+// not have field-ids specified).
+//
 // Callers are responsible for ensuring each DataFile is valid and consistent with the table.
 // Supplying incorrect DataFile metadata can produce an invalid snapshot and break reads.
 func (t *Transaction) AddDataFiles(ctx context.Context, dataFiles []iceberg.DataFile, snapshotProps iceberg.Properties) error {
@@ -549,18 +553,6 @@ func (t *Transaction) AddDataFiles(ctx context.Context, dataFiles []iceberg.Data
 
 		if len(referenced) > 0 {
 			return fmt.Errorf("cannot add files that are already referenced by table, files: %v", referenced)
-		}
-	}
-
-	if t.meta.NameMapping() == nil {
-		nameMapping := t.meta.CurrentSchema().NameMapping()
-		mappingJson, err := json.Marshal(nameMapping)
-		if err != nil {
-			return err
-		}
-		err = t.SetProperties(iceberg.Properties{DefaultNameMappingKey: string(mappingJson)})
-		if err != nil {
-			return err
 		}
 	}
 
